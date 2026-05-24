@@ -459,6 +459,7 @@
   <button class="preset" data-preset="inspect_shield">⌕ HEAT SHIELD</button>
   <button class="preset" data-preset="dock">⊕ DOCK PORT</button>
   <button class="preset" data-preset="emergency">⚠ EMERG RETRACT</button>
+  <button class="preset" id="btn-auto" style="border-color:rgba(74,168,255,0.25);color:#e9f0fa;">⟳ AUTO ANIM</button>
 </div>
 
 <!-- Picture-in-Picture (end-effector camera) -->
@@ -1648,6 +1649,88 @@ fEnv.add(envOpts, 'showGrid').name('HUD grid').onChange(v => document.getElement
 fEnv.add(envOpts, 'showScanlines').name('Scanlines').onChange(v => document.getElementById('scanlines').style.display = v ? '' : 'none');
 
 /* =====================================================================
+   10b. AUTO-OSCILLATION — Alternating joint axes + wrist spin
+   ================================================================== */
+// Each joint oscillates on alternating axes:
+//   Odd-indexed  (0,2,4) → vertical    (pitch on Z)
+//   Even-indexed (1,3)   → horizontal  (yaw on Y)
+//   Joint 5 (wrist roll) → continuous 360° spin on X
+// Amplitudes and phases staggered for a natural wave effect.
+
+const AUTO_AMP   = 45;   // degrees amplitude for segments 0-4
+const AUTO_FREQ  = 0.35; // Hz for oscillating joints
+const WRIST_RPM  = 12;   // wrist full-rotation speed (deg/s equivalent)
+
+// Phase offsets (radians) so segments don't all move in unison
+const PHASE_OFFSET = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 0];
+
+let autoAnimEnabled = false;
+let autoAnimTime    = 0;          // accumulated time (seconds)
+let wristAngleDeg   = 0;          // continuous wrist rotation
+
+// Blend factor: 0 = fully manual (pose), 1 = fully auto
+let autoBlend = 0.0;
+let blendTarget = 0.0;
+
+function updateAutoAnim(dt) {
+  if (!autoAnimEnabled) return;
+
+  // Smooth blend transitions
+  autoBlend += (blendTarget - autoBlend) * Math.min(1, dt * 3);
+
+  autoAnimTime += dt;
+  const t = autoAnimTime;
+  const ω = AUTO_FREQ * Math.PI * 2; // angular frequency
+
+  // Oscillation values for joints 0-4
+  const osc = [
+    Math.sin(ω * t + PHASE_OFFSET[0]) * AUTO_AMP,   // J1 — vertical   (Z pitch)
+    Math.sin(ω * t + PHASE_OFFSET[1]) * AUTO_AMP,   // J2 — horizontal (Y yaw)
+    Math.sin(ω * t + PHASE_OFFSET[2]) * AUTO_AMP,   // J3 — vertical   (Z pitch)
+    Math.sin(ω * t + PHASE_OFFSET[3]) * AUTO_AMP,   // J4 — horizontal (Y yaw)
+    Math.sin(ω * t + PHASE_OFFSET[4]) * AUTO_AMP,   // J5 — vertical   (Z pitch)
+  ];
+
+  // Continuous wrist spin (360°)
+  wristAngleDeg += WRIST_RPM * dt;
+  if (wristAngleDeg >= 360) wristAngleDeg -= 360;
+
+  const b = autoBlend;
+
+  // Apply blended rotations directly to joints
+  // joint[0] → J1: vertical  (rotation.z)
+  joints[0].rotation.z = THREE.MathUtils.degToRad(
+    state.j1 * (1-b) + osc[0] * b
+  );
+  // joint[1] → J2: horizontal (rotation.y)
+  joints[1].rotation.z = 0;
+  joints[1].rotation.y = THREE.MathUtils.degToRad(
+    state.j2 * (1-b) + osc[1] * b
+  );
+  // joint[2] → J3: vertical  (rotation.z)
+  joints[2].rotation.y = 0;
+  joints[2].rotation.z = THREE.MathUtils.degToRad(
+    state.j3 * (1-b) + osc[2] * b
+  );
+  // joint[3] → J4: horizontal (rotation.y)
+  joints[3].rotation.z = 0;
+  joints[3].rotation.y = THREE.MathUtils.degToRad(
+    state.j4 * (1-b) + osc[3] * b
+  );
+  // joint[4] → J5: vertical  (rotation.z)
+  joints[4].rotation.y = 0;
+  joints[4].rotation.z = THREE.MathUtils.degToRad(
+    state.j5 * (1-b) + osc[4] * b
+  );
+  // joint[5] (wrist) → continuous 360° roll on X
+  joints[5].rotation.y = 0;
+  joints[5].rotation.z = 0;
+  joints[5].rotation.x = THREE.MathUtils.degToRad(
+    state.j6 * (1-b) + wristAngleDeg * b
+  );
+}
+
+/* =====================================================================
    11. POSE INTERPOLATION + PRESETS + COMMAND LOG
    ================================================================== */
 let poseAnim = null;
@@ -1698,11 +1781,40 @@ document.querySelectorAll('#panel-presets .preset').forEach(btn => {
   });
 });
 
+// AUTO ANIM toggle
+const btnAuto = document.getElementById('btn-auto');
+btnAuto.addEventListener('click', () => {
+  autoAnimEnabled = !autoAnimEnabled;
+  if (autoAnimEnabled) {
+    blendTarget = 1.0;
+    btnAuto.style.borderColor = 'rgba(46,226,122,0.5)';
+    btnAuto.style.color = '#2ee27a';
+    logEvt('> AUTO-ANIM ENABLED · JOINT OSCILLATION ACTIVE', 'ok');
+  } else {
+    blendTarget = 0.0;
+    btnAuto.style.borderColor = 'rgba(74,168,255,0.25)';
+    btnAuto.style.color = '#e9f0fa';
+    logEvt('> AUTO-ANIM DISABLED · MANUAL CONTROL', '');
+  }
+});
+
+// When a pose preset is clicked, temporarily lower the auto-blend so the
+// preset pose is visible, then return to auto after 4 s.
+document.querySelectorAll('#panel-presets .preset[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (autoAnimEnabled) {
+      blendTarget = 0.0;
+      setTimeout(() => { if (autoAnimEnabled) blendTarget = 1.0; }, 4000);
+    }
+  });
+});
+
 // Initial log
 logEvt('> ARES-1 BOOT SEQUENCE COMPLETE', 'ok');
 logEvt('> SLEWING RING NOMINAL · 0.00°', 'ok');
 logEvt('> 6 SERVO MOTORS ONLINE · TORQUE NOMINAL', 'ok');
 logEvt('> END-EFFECTOR CAMERA STREAMING 4K/60', 'ok');
+logEvt('> AUTO-ANIM STANDBY · PRESS ⟳ TO ACTIVATE', '');
 logEvt('> CAPCOM HANDOVER COMPLETE · READY FOR OPS');
 
 /* =====================================================================
@@ -1798,6 +1910,7 @@ function render(now) {
   last = now;
 
   updatePoseAnim(now);
+  updateAutoAnim(dt);
   controls.update();
 
   if (envOpts.earthSpin) {
@@ -1877,4 +1990,3 @@ setTimeout(() => {
 
 </body>
 </html>
-
