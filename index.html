@@ -1,1 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ARES · Asistente Robótico Espacial — Starship Simulator</title>
+<style>
+  :root {
+    --panel-bg: rgba(10, 14, 22, 0.72);
+    --panel-border: rgba(120, 170, 255, 0.18);
+    --text: #e9eef7;
+    --muted: #93a4bf;
+    --accent: #4aa8ff;
+  }
+  html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+  }
+  canvas { display: block; }
 
+  #hud {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    padding: 14px 18px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    pointer-events: none;
+    max-width: 320px;
+  }
+  #hud h1 {
+    margin: 0 0 4px 0;
+    font-size: 15px;
+    letter-spacing: 2px;
+    font-weight: 600;
+  }
+  #hud h1 .dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: #2ee27a;
+    box-shadow: 0 0 8px #2ee27a;
+    margin-right: 8px; vertical-align: middle;
+  }
+  #hud p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.45; }
+  #hud .badge {
+    display:inline-block; padding:2px 8px; border:1px solid var(--panel-border);
+    border-radius:999px; font-size:10px; color: var(--accent); margin-top:8px;
+  }
+
+  #telemetry {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 10;
+    padding: 12px 16px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events: none;
+  }
+  #telemetry b { color: var(--text); font-weight: 500; }
+
+  /* lil-gui overrides */
+  .lil-gui.root {
+    --background-color: rgba(10, 14, 22, 0.78);
+    --text-color: #e9eef7;
+    --title-background-color: rgba(74, 168, 255, 0.18);
+    --title-text-color: #ffffff;
+    --widget-color: rgba(255, 255, 255, 0.08);
+    --hover-color: rgba(74, 168, 255, 0.22);
+    --focus-color: rgba(74, 168, 255, 0.35);
+    --number-color: #6cc8ff;
+    --string-color: #cfe6ff;
+    --font-size: 12px;
+    --width: 300px;
+    --widget-height: 22px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <h1><span class="dot"></span>ARES · ROBOTIC ASSISTANT</h1>
+  <p>SpaceX Starship · Órbita Terrestre Baja · Sistema de pruebas interactivo del brazo de servicio (6-DOF, alcance 27.6 m).</p>
+  <span class="badge">FK SIMULATION · LIVE</span>
+</div>
+
+<div id="telemetry">
+  <div>SLEWING RING : <b id="t-ring">0.0°</b></div>
+  <div>END-EFFECTOR  : <b id="t-pos">0.0, 0.0, 0.0</b></div>
+  <div>FPS           : <b id="t-fps">--</b></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "lil-gui": "https://unpkg.com/lil-gui@0.19.2/dist/lil-gui.esm.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import GUI from 'lil-gui';
+
+/* ========================================================================
+   1.  RENDERER · SCENE · CAMERA
+   ====================================================================== */
+const scene = new THREE.Scene();
+scene.fog = null;
+
+const camera = new THREE.PerspectiveCamera(
+  55, window.innerWidth / window.innerHeight, 0.1, 6000
+);
+camera.position.set(70, 22, 90);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 18;
+controls.maxDistance = 700;
+controls.target.set(0, 5, 0);
+
+/* ========================================================================
+   2.  LIGHTING (vacuum-of-space style)
+   ====================================================================== */
+const sun = new THREE.DirectionalLight(0xfff0dc, 4.0);
+sun.position.set(220, 140, 120);
+scene.add(sun);
+
+const ambient = new THREE.AmbientLight(0x223a55, 0.22); // very soft fill
+scene.add(ambient);
+
+// Subtle Earth-bounce (planet-shine)
+const earthBounce = new THREE.DirectionalLight(0x4488ff, 0.55);
+earthBounce.position.set(-30, -120, -40);
+scene.add(earthBounce);
+
+/* ========================================================================
+   3.  STAR FIELD (3D points)
+   ====================================================================== */
+function createStars() {
+  const geo = new THREE.BufferGeometry();
+  const COUNT = 9000;
+  const pos = new Float32Array(COUNT * 3);
+  const col = new Float32Array(COUNT * 3);
+  for (let i = 0; i < COUNT; i++) {
+    const r = 1800 + Math.random() * 800;
+    const t = Math.random() * Math.PI * 2;
+    const p = Math.acos(2 * Math.random() - 1);
+    pos[i*3+0] = r * Math.sin(p) * Math.cos(t);
+    pos[i*3+1] = r * Math.sin(p) * Math.sin(t);
+    pos[i*3+2] = r * Math.cos(p);
+    const I = 0.55 + Math.random() * 0.45;
+    const tint = Math.random();
+    col[i*3+0] = I * (tint > 0.92 ? 1.0 : 0.86);
+    col[i*3+1] = I * (tint > 0.7  ? 0.95 : 0.84);
+    col[i*3+2] = I;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 1.6, vertexColors: true, sizeAttenuation: false, transparent: true, depthWrite: false
+  });
+  return new THREE.Points(geo, mat);
+}
+scene.add(createStars());
+
+/* ========================================================================
+   4.  EARTH (procedural canvas texture)
+   ====================================================================== */
+function makeEarthTexture() {
+  const c = document.createElement('canvas');
+  c.width = 2048; c.height = 1024;
+  const ctx = c.getContext('2d');
+
+  // ocean gradient (poles slightly darker)
+  const g = ctx.createLinearGradient(0, 0, 0, c.height);
+  g.addColorStop(0.00, '#06224a');
+  g.addColorStop(0.20, '#0c3a78');
+  g.addColorStop(0.50, '#1659a8');
+  g.addColorStop(0.80, '#0c3a78');
+  g.addColorStop(1.00, '#06224a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, c.width, c.height);
+
+  // continents
+  for (let i = 0; i < 110; i++) {
+    const x = Math.random() * c.width;
+    const y = (0.1 + Math.random() * 0.8) * c.height;
+    const r = 30 + Math.random() * 130;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0.0, '#3a7a3a');
+    rg.addColorStop(0.55, '#22552a');
+    rg.addColorStop(1.0, 'rgba(20, 60, 20, 0)');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // arid / desert
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * c.width;
+    const y = (0.35 + Math.random() * 0.3) * c.height;
+    const r = 25 + Math.random() * 60;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0.0, '#c8a567');
+    rg.addColorStop(1.0, 'rgba(200, 165, 100, 0)');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // clouds
+  for (let i = 0; i < 220; i++) {
+    const x = Math.random() * c.width;
+    const y = Math.random() * c.height;
+    const r = 18 + Math.random() * 55;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0.0, 'rgba(255,255,255,0.55)');
+    rg.addColorStop(1.0, 'rgba(255,255,255,0)');
+    ctx.fillStyle = rg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  // ice caps
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillRect(0, 0, c.width, c.height * 0.06);
+  ctx.fillRect(0, c.height * 0.94, c.width, c.height * 0.06);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
+}
+
+const earthGroup = new THREE.Group();
+earthGroup.position.set(0, -180, 0);
+scene.add(earthGroup);
+
+const earth = new THREE.Mesh(
+  new THREE.SphereGeometry(70, 96, 96),
+  new THREE.MeshStandardMaterial({
+    map: makeEarthTexture(),
+    roughness: 0.95, metalness: 0.0
+  })
+);
+earthGroup.add(earth);
+
+const atmosphere = new THREE.Mesh(
+  new THREE.SphereGeometry(73, 64, 64),
+  new THREE.MeshBasicMaterial({
+    color: 0x4ea0ff, transparent: true, opacity: 0.14, side: THREE.BackSide, depthWrite: false
+  })
+);
+earthGroup.add(atmosphere);
+
+/* ========================================================================
+   5.  STARSHIP (procedural) — split body: steel + heat-shield tiles
+   ====================================================================== */
+const starshipGroup = new THREE.Group();
+scene.add(starshipGroup);
+
+const steelMat = new THREE.MeshStandardMaterial({
+  color: 0xe2e5ea, metalness: 0.96, roughness: 0.28
+});
+
+function makeTileTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#14141a'; ctx.fillRect(0, 0, 512, 512);
+  const tile = 26;
+  for (let y = 0; y < 512; y += tile) {
+    const off = (Math.floor(y / tile) % 2) * (tile / 2);
+    for (let x = -tile; x < 512 + tile; x += tile) {
+      ctx.fillStyle = rgba(${30 + Math.random()*20},${30 + Math.random()*20},${36 + Math.random()*22},1);
+      ctx.fillRect(x + off + 1, y + 1, tile - 3, tile - 3);
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + off + 1, y + 1, tile - 3, tile - 3);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(4, 10);
+  return t;
+}
+
+const heatShieldMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, metalness: 0.35, roughness: 0.7, map: makeTileTexture()
+});
+
+const BODY_RADIUS = 4.5;
+const BODY_HEIGHT = 50;
+const SEG = 72;
+
+// steel half (front)
+starshipGroup.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(BODY_RADIUS, BODY_RADIUS, BODY_HEIGHT, SEG, 1, false, 0, Math.PI),
+  steelMat
+));
+// heat-shield half (back)
+starshipGroup.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(BODY_RADIUS, BODY_RADIUS, BODY_HEIGHT, SEG, 1, false, Math.PI, Math.PI),
+  heatShieldMat
+));
+
+// reinforcement rings
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xb6bcc4, metalness: 0.9, roughness: 0.4 });
+for (let y = -BODY_HEIGHT/2 + 4; y <= BODY_HEIGHT/2 - 4; y += 5) {
+  const r = new THREE.Mesh(
+    new THREE.TorusGeometry(BODY_RADIUS + 0.03, 0.06, 6, SEG),
+    ringMat
+  );
+  r.rotation.x = Math.PI / 2; r.position.y = y;
+  starshipGroup.add(r);
+}
+
+// Nosecone (steel + heat shield halves)
+const NOSE_H = 13;
+const noseSteel = new THREE.Mesh(
+  new THREE.ConeGeometry(BODY_RADIUS, NOSE_H, SEG, 1, false, 0, Math.PI),
+  steelMat
+);
+noseSteel.position.y = BODY_HEIGHT/2 + NOSE_H/2;
+starshipGroup.add(noseSteel);
+
+const noseHeat = new THREE.Mesh(
+  new THREE.ConeGeometry(BODY_RADIUS, NOSE_H, SEG, 1, false, Math.PI, Math.PI),
+  heatShieldMat
+);
+noseHeat.position.y = BODY_HEIGHT/2 + NOSE_H/2;
+starshipGroup.add(noseHeat);
+
+// Flaps (forward upper, aft lower)
+function addFlap(angle, upper) {
+  const flap = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 6, 3.5),
+    heatShieldMat
+  );
+  const y = upper ? BODY_HEIGHT/2 - 5 : -BODY_HEIGHT/2 + 5;
+  flap.position.set(Math.cos(angle) * (BODY_RADIUS + 1.7), y, Math.sin(angle) * (BODY_RADIUS + 1.7));
+  flap.rotation.y = -angle + Math.PI/2;
+  flap.rotation.z = upper ? 0.25 : -0.25;
+  starshipGroup.add(flap);
+}
+addFlap(Math.PI * 0.30, true);
+addFlap(Math.PI * 0.70, true);
+addFlap(Math.PI * 1.30, false);
+addFlap(Math.PI * 1.70, false);
+
+// Raptor engines (decorative)
+const engineMat = new THREE.MeshStandardMaterial({ color: 0x3d3f44, metalness: 0.85, roughness: 0.55 });
+for (let i = 0; i < 9; i++) {
+  let a, r;
+  if (i < 3) { a = (i / 3) * Math.PI * 2; r = 1.4; }
+  else { a = ((i - 3) / 6) * Math.PI * 2; r = 3.1; }
+  const e = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.7, 1.0, 1.6, 18),
+    engineMat
+  );
+  e.position.set(Math.cos(a) * r, -BODY_HEIGHT/2 - 0.8, Math.sin(a) * r);
+  starshipGroup.add(e);
+}
+
+/* ========================================================================
+   6.  SLEWING RING (Corona Dentada) — just above mid-chassis
+   ====================================================================== */
+const slewingY = BODY_HEIGHT * 0.18;   // a bit above the midpoint (interface methane↔️cargo)
+const slewingRing = new THREE.Group();
+slewingRing.position.y = slewingY;
+starshipGroup.add(slewingRing);
+
+// Visible toothed ring (torus body)
+const ringBody = new THREE.Mesh(
+  new THREE.TorusGeometry(BODY_RADIUS + 0.45, 0.55, 16, 96),
+  new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.95, roughness: 0.32 })
+);
+ringBody.rotation.x = Math.PI / 2;
+slewingRing.add(ringBody);
+
+// teeth
+const TEETH = 72;
+const toothMat = new THREE.MeshStandardMaterial({ color: 0x16181d, metalness: 0.9, roughness: 0.38 });
+for (let i = 0; i < TEETH; i++) {
+  const a = (i / TEETH) * Math.PI * 2;
+  const t = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.45, 0.34), toothMat);
+  t.position.set(Math.cos(a) * (BODY_RADIUS + 1.0), 0, Math.sin(a) * (BODY_RADIUS + 1.0));
+  t.rotation.y = -a;
+  slewingRing.add(t);
+}
+
+// upper / lower lip
+function lipRing(rOff, h) {
+  const m = new THREE.Mesh(
+    new THREE.TorusGeometry(BODY_RADIUS + rOff, 0.15, 10, 96),
+    new THREE.MeshStandardMaterial({ color: 0x444a52, metalness: 0.85, roughness: 0.4 })
+  );
+  m.rotation.x = Math.PI/2; m.position.y = h;
+  slewingRing.add(m);
+}
+lipRing(0.45,  0.55);
+lipRing(0.45, -0.55);
+
+/* ========================================================================
+   7.  ROBOTIC ARM — 6 segments, hierarchical FK
+   ====================================================================== */
+const SEG_LEN = 4.6;          // m, per dossier
+const SEG_RADIUS = 0.55;
+const SEG_COUNT = 6;          // total reach = 27.6 m
+
+const armWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, metalness: 0.35, roughness: 0.5 });
+const accentMat   = new THREE.MeshStandardMaterial({ color: 0x222428, metalness: 0.85, roughness: 0.4 });
+
+// Mount on slewing ring
+const armMount = new THREE.Group();
+armMount.position.set(BODY_RADIUS + 1.0, 0, 0); // attached on the ring at local angle 0
+slewingRing.add(armMount);
+
+const mountStub = new THREE.Mesh(
+  new THREE.CylinderGeometry(1.0, 1.3, 1.6, 26),
+  new THREE.MeshStandardMaterial({ color: 0xcdd1d8, metalness: 0.75, roughness: 0.35 })
+);
+mountStub.rotation.z = Math.PI / 2;
+mountStub.position.x = 0.4;
+armMount.add(mountStub);
+
+// Build hierarchical chain. Each joint pivot Group is the child of the previous joint.
+// A "segment" cylinder is laid along +X (length SEG_LEN), so chaining produces FK naturally.
+const joints = [];
+let parent = armMount;
+
+for (let i = 0; i < SEG_COUNT; i++) {
+  const joint = new THREE.Group();
+
+  // shoulder housing sphere (the pivot visualization)
+  const housing = new THREE.Mesh(
+    new THREE.SphereGeometry(SEG_RADIUS * 1.45, 28, 18),
+    accentMat
+  );
+  joint.add(housing);
+
+  // segment cylinder along +X
+  const seg = new THREE.Mesh(
+    new THREE.CylinderGeometry(SEG_RADIUS, SEG_RADIUS * 0.92, SEG_LEN, 26),
+    armWhiteMat
+  );
+  seg.rotation.z = Math.PI / 2;
+  seg.position.x = SEG_LEN / 2;
+  joint.add(seg);
+
+  // accent cuff at the distal end
+  const cuff = new THREE.Mesh(
+    new THREE.CylinderGeometry(SEG_RADIUS * 1.08, SEG_RADIUS * 1.08, 0.3, 26),
+    accentMat
+  );
+  cuff.rotation.z = Math.PI / 2;
+  cuff.position.x = SEG_LEN - 0.18;
+  joint.add(cuff);
+
+  // small status LED ring
+  const led = new THREE.Mesh(
+    new THREE.TorusGeometry(SEG_RADIUS * 1.05, 0.05, 6, 28),
+    new THREE.MeshStandardMaterial({
+      color: 0x4aa8ff, emissive: 0x4aa8ff, emissiveIntensity: 0.6,
+      metalness: 0.4, roughness: 0.5
+    })
+  );
+  led.rotation.y = Math.PI / 2;
+  led.position.x = 0.45;
+  joint.add(led);
+
+  // place the joint at the end of the previous segment
+  joint.position.x = (i === 0) ? 1.1 : SEG_LEN;
+
+  parent.add(joint);
+  joints.push(joint);
+  parent = joint;
+}
+
+/* End effector: wrist + optical arm + gripper */
+const endEffector = new THREE.Group();
+endEffector.position.x = SEG_LEN;
+parent.add(endEffector);
+
+const wrist = new THREE.Mesh(
+  new THREE.CylinderGeometry(SEG_RADIUS * 1.3, SEG_RADIUS * 1.3, 0.9, 24),
+  accentMat
+);
+wrist.rotation.z = Math.PI / 2;
+endEffector.add(wrist);
+
+// Optical camera boom
+const opticalArm = new THREE.Mesh(
+  new THREE.BoxGeometry(1.1, 0.45, 0.45),
+  armWhiteMat
+);
+opticalArm.position.set(0.85, 0.75, 0);
+endEffector.add(opticalArm);
+
+const lens = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.26, 0.26, 0.45, 18),
+  new THREE.MeshStandardMaterial({
+    color: 0x0a0c12, metalness: 0.6, roughness: 0.2,
+    emissive: 0x0a2a55, emissiveIntensity: 0.6
+  })
+);
+lens.rotation.z = Math.PI / 2;
+lens.position.set(1.55, 0.75, 0);
+endEffector.add(lens);
+
+// Twin gripper jaws
+function makeJaw(side) {
+  const jaw = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.32, 0.32), armWhiteMat);
+  base.position.x = 0.75; jaw.add(base);
+  const tip  = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.32), accentMat);
+  tip.position.set(1.5, 0, 0); jaw.add(tip);
+  jaw.position.set(0.5, 0, side * 0.32);
+  jaw.rotation.y = side * 0.18;
+  return jaw;
+}
+endEffector.add(makeJaw( 1));
+endEffector.add(makeJaw(-1));
+
+/* ========================================================================
+   8.  POSE / FORWARD KINEMATICS
+   ====================================================================== */
+// Per-joint rotation axis is intentionally varied to produce realistic
+// 6-DOF motion (pitch / pitch / pitch / yaw / pitch / roll).
+const safePose = { ring: 0, j1: -55, j2: 110, j3: -70, j4: 0, j5: -30, j6: 0 };
+const zeroPose = { ring: 0, j1:   0, j2:   0, j3:   0, j4: 0, j5:   0, j6: 0 };
+
+function applyPose(p) {
+  slewingRing.rotation.y = THREE.MathUtils.degToRad(p.ring);
+  joints[0].rotation.z = THREE.MathUtils.degToRad(p.j1); // shoulder pitch
+  joints[1].rotation.z = THREE.MathUtils.degToRad(p.j2); // elbow pitch
+  joints[2].rotation.z = THREE.MathUtils.degToRad(p.j3); // wrist 1 pitch
+  joints[3].rotation.y = THREE.MathUtils.degToRad(p.j4); // yaw
+  joints[4].rotation.z = THREE.MathUtils.degToRad(p.j5); // wrist 2 pitch
+  joints[5].rotation.x = THREE.MathUtils.degToRad(p.j6); // tool roll
+}
+
+/* ========================================================================
+   9.  CONTROL PANEL (lil-gui)
+   ====================================================================== */
+const state = { ...safePose };
+applyPose(state);
+
+const gui = new GUI({ title: 'ARES · Panel de Control' });
+
+const fRing = gui.addFolder('Corona Dentada (Slewing Ring)');
+fRing.add(state, 'ring', 0, 360, 0.5).name('Rotación °').onChange(() => applyPose(state));
+
+const fArm = gui.addFolder('Brazo Articulado · 6 DOF (FK)');
+fArm.add(state, 'j1', -180, 180, 0.5).name('J1 · Hombro (pitch)').onChange(() => applyPose(state));
+fArm.add(state, 'j2', -180, 180, 0.5).name('J2 · Codo (pitch)').onChange(() => applyPose(state));
+fArm.add(state, 'j3', -180, 180, 0.5).name('J3 · Muñeca 1 (pitch)').onChange(() => applyPose(state));
+fArm.add(state, 'j4', -180, 180, 0.5).name('J4 · Yaw').onChange(() => applyPose(state));
+fArm.add(state, 'j5', -180, 180, 0.5).name('J5 · Muñeca 2 (pitch)').onChange(() => applyPose(state));
+fArm.add(state, 'j6', -360, 360, 1.0).name('J6 · Roll (tool)').onChange(() => applyPose(state));
+
+const fScene = gui.addFolder('Escena');
+const sceneOpts = { earthSpin: true, shipDrift: true, exposure: 1.05 };
+fScene.add(sceneOpts, 'earthSpin').name('Rotar Tierra');
+fScene.add(sceneOpts, 'shipDrift').name('Deriva orbital Starship');
+fScene.add(sceneOpts, 'exposure', 0.4, 2.0, 0.05).name('Exposición').onChange(v => renderer.toneMappingExposure = v);
+
+const actions = {
+  reset: () => animatePoseTo(safePose),
+  extend: () => animatePoseTo(zeroPose),
+  demo:   () => runDemo()
+};
+gui.add(actions, 'reset').name('↺ Restablecer (plegado seguro)');
+gui.add(actions, 'extend').name('→ Brazo completamente extendido');
+gui.add(actions, 'demo').name('▶️ Demo de movimientos');
+
+/* Smooth pose transitions */
+let poseAnim = null;
+function animatePoseTo(target, dur = 1.4) {
+  const from = { ...state };
+  const t0 = performance.now();
+  poseAnim = { from, target, t0, dur };
+}
+function updatePoseAnim(now) {
+  if (!poseAnim) return;
+  const t = Math.min(1, (now - poseAnim.t0) / (poseAnim.dur * 1000));
+  // ease in-out cubic
+  const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  for (const k of Object.keys(poseAnim.target)) {
+    state[k] = poseAnim.from[k] + (poseAnim.target[k] - poseAnim.from[k]) * e;
+  }
+  applyPose(state);
+  gui.controllersRecursive().forEach(c => c.updateDisplay());
+  if (t >= 1) poseAnim = null;
+}
+
+/* Multi-step demo */
+function runDemo() {
+  const steps = [
+    safePose,
+    { ring: 90,  j1: -30, j2: 60,  j3: -45, j4: 30,  j5: -20, j6: 45  },
+    { ring: 180, j1: -10, j2: 30,  j3: -10, j4: -40, j5:  20, j6: -90 },
+    { ring: 270, j1: -60, j2: 100, j3: -80, j4: 20,  j5: -40, j6: 180 },
+    safePose
+  ];
+  let i = 0;
+  const next = () => {
+    if (i >= steps.length) return;
+    animatePoseTo(steps[i++], 2.2);
+    setTimeout(next, 2400);
+  };
+  next();
+}
+
+/* ========================================================================
+   10. ANIMATION LOOP
+   ====================================================================== */
+const tRing = document.getElementById('t-ring');
+const tPos  = document.getElementById('t-pos');
+const tFps  = document.getElementById('t-fps');
+const eePos = new THREE.Vector3();
+
+let last = performance.now(), frames = 0, fpsTimer = 0, fps = 60;
+
+function animate(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  // pose interp
+  updatePoseAnim(now);
+
+  controls.update();
+
+  if (sceneOpts.earthSpin) {
+    earth.rotation.y      += dt * 0.04;
+    atmosphere.rotation.y += dt * 0.04;
+  }
+  if (sceneOpts.shipDrift) {
+    starshipGroup.rotation.y += dt * 0.015;
+  }
+
+  renderer.render(scene, camera);
+
+  // telemetry
+  frames++; fpsTimer += dt;
+  if (fpsTimer >= 0.5) {
+    fps = Math.round(frames / fpsTimer);
+    frames = 0; fpsTimer = 0;
+    tFps.textContent = fps + ' fps';
+  }
+  tRing.textContent = state.ring.toFixed(1) + '°';
+  endEffector.getWorldPosition(eePos);
+  tPos.textContent  = ${eePos.x.toFixed(1)}, ${eePos.y.toFixed(1)}, ${eePos.z.toFixed(1)};
+
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+/* ========================================================================
+   11. RESPONSIVE RESIZE
+   ====================================================================== */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
