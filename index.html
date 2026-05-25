@@ -341,9 +341,125 @@
   }
   .lil-gui.root { right: 18px !important; top: 200px !important; }
 
+  /* ── TAB NAVIGATION ─────────────────────────────────────────── */
+  #tab-nav {
+    position: fixed; top: 0; left: 0; right: 0; height: 44px;
+    z-index: 250;
+    background: rgba(4, 6, 11, 0.97);
+    border-bottom: 1px solid rgba(74, 168, 255, 0.25);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; pointer-events: auto;
+  }
+  .tab-brand {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 2.5px; color: var(--accent-2);
+    display: flex; align-items: center; gap: 8px;
+    text-transform: uppercase; user-select: none;
+  }
+  .brand-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease-in-out infinite; flex-shrink: 0;
+  }
+  .tab-buttons { display: flex; align-items: stretch; height: 100%; gap: 2px; }
+  .tab-btn {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+    padding: 0 16px;
+    background: transparent;
+    border: none; border-bottom: 2px solid transparent;
+    color: var(--text-dim); cursor: pointer;
+    transition: all 0.18s; text-transform: uppercase;
+  }
+  .tab-btn:hover { color: var(--accent-2); background: rgba(74,168,255,0.06); }
+  .tab-btn.active {
+    color: var(--accent-2); border-bottom-color: var(--accent);
+    background: rgba(74,168,255,0.08);
+  }
+
+  /* ── TAB CONTENT PANELS ──────────────────────────────────────── */
+  .tab-panel {
+    position: fixed; top: 44px; left: 0; right: 0; bottom: 0;
+    overflow-y: auto; background: var(--bg-deep); z-index: 50;
+  }
+  .tab-inner { max-width: 1100px; margin: 0 auto; padding: 52px 40px; }
+  .tab-heading {
+    font-family: var(--mono); font-size: 22px;
+    letter-spacing: 3px; color: var(--accent-2); margin: 0 0 8px;
+  }
+  .tab-lead {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 2px; margin: 0 0 44px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(74,168,255,0.12);
+  }
+  /* Docs */
+  .docs-img-frame {
+    border: 1px solid var(--panel-border); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 0 60px rgba(74,168,255,0.1); background: #000;
+  }
+  .docs-img-frame img { width: 100%; display: block; object-fit: contain; }
+  .docs-desc {
+    margin-top: 32px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .docs-card {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 20px; backdrop-filter: blur(14px);
+  }
+  .docs-card h3 {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2.5px;
+    color: var(--accent); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .docs-card p { font-size: 13px; color: var(--text-dim); line-height: 1.65; margin: 0; }
+  /* Contact */
+  .contact-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  .contact-card {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 22px 24px;
+    display: flex; align-items: center; gap: 18px;
+    transition: border-color 0.2s, box-shadow 0.2s; backdrop-filter: blur(14px);
+  }
+  .contact-card:hover {
+    border-color: rgba(74,168,255,0.5);
+    box-shadow: 0 0 28px rgba(74,168,255,0.12);
+  }
+  .contact-avatar {
+    width: 50px; height: 50px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(74,168,255,0.25), rgba(74,168,255,0.04));
+    border: 1px solid rgba(74,168,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--accent-2); flex-shrink: 0; letter-spacing: 1px;
+  }
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .contact-email {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    text-decoration: none; letter-spacing: 0.5px; word-break: break-all; display: block;
+  }
+  .contact-email:hover { color: var(--accent-2); text-decoration: underline; }
+  .contact-tag {
+    display: inline-block; margin-top: 8px;
+    font-family: var(--mono); font-size: 8px; letter-spacing: 2px;
+    color: var(--text-faint); text-transform: uppercase;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px; padding: 2px 6px;
+  }
+  /* Shift top panels down to clear the tab nav */
+  #panel-mission    { top: 62px !important; }
+  #panel-spacecraft { top: 62px !important; }
+  #panel-presets    { top: 62px !important; }
+  .lil-gui.root     { top: 244px !important; }
+
   /* Loader */
   #loader {
-    position: fixed; inset: 0; z-index: 100;
+    position: fixed; inset: 0; z-index: 300;
     background: var(--bg-deep);
     display: flex; align-items: center; justify-content: center;
     flex-direction: column;
@@ -371,10 +487,108 @@
 </head>
 <body>
 
+<!-- ============================================== -->
+<!-- TAB NAVIGATION                                 -->
+<!-- ============================================== -->
+<div id="tab-nav">
+  <div class="tab-brand">
+    <span class="brand-dot"></span>
+    ARES-1 · MISSION CONTROL
+  </div>
+  <div class="tab-buttons">
+    <button class="tab-btn active" data-tab="simulator">⊕ SIMULADOR</button>
+    <button class="tab-btn" data-tab="docs">⌕ DOCUMENTACIÓN</button>
+    <button class="tab-btn" data-tab="contact">✉ CONTACTO</button>
+  </div>
+</div>
+
 <div id="loader">
   <div class="title">INITIALIZING ARES-1</div>
   <div class="bar"></div>
   <div class="sub">LOADING ORBITAL ASSETS</div>
+</div>
+
+<!-- ============================================== -->
+<!-- DOCS PANEL                                     -->
+<!-- ============================================== -->
+<div id="tab-docs" class="tab-panel" style="display:none">
+  <div class="tab-inner">
+    <h1 class="tab-heading">ARES — Asistente Robótico ESpacial</h1>
+    <p class="tab-lead">Documentación técnica · Integración completa con Starship · Sistema de servicio orbital</p>
+    <div class="docs-img-frame">
+      <img src="ares_infografico.jpg" alt="Infografía técnica ARES · Funcionamiento y adaptación a Starship" />
+    </div>
+    <div class="docs-desc">
+      <div class="docs-card">
+        <h3>Movilidad · Corona Dentada</h3>
+        <p>Anillo de corona dentada instalado en la zona interior de la Starship. Permite rotación continua de 360° alrededor del casco mediante sistema piñón-corona dentada.</p>
+      </div>
+      <div class="docs-card">
+        <h3>Articulación · Harmonic Drive</h3>
+        <p>6 segmentos de 4,6 m con harmonic drives (wave generator, flexspline, circular spline) que eliminan el backlash angular. Extensión total: 27,6 m. 6 GDL + 3 en la muñeca.</p>
+      </div>
+      <div class="docs-card">
+        <h3>Muñeca Terminal · Cardán 3 Ejes</h3>
+        <p>Junta de tres ejes equivalente a una muñeca humana, que permite orientar el efector final en cualquier dirección sin necesidad de reposicionar el brazo completo.</p>
+      </div>
+      <div class="docs-card">
+        <h3>Prevención de Riesgos · Fusión Sensorial</h3>
+        <p>Combinación simultánea de LIDAR, IMU, giroscopio y sensor de fuerza/torque en la muñeca. Redundancia computacional: sistema secundario asume el control ante fallo parcial.</p>
+      </div>
+      <div class="docs-card">
+        <h3>Energía · Integración Starship</h3>
+        <p>Alimentación directa desde la red eléctrica de la Starship. Respaldo con batería LiPo de grado espacial de ~10 kWh, suficiente para ~30 minutos de operación autónoma activa.</p>
+      </div>
+      <div class="docs-card">
+        <h3>Sistema de Herramientas · Revólver</h3>
+        <p>Tambor rotativo de 6 a 8 bahías intercambiables. Interfaz de bayoneta con bloqueo magnético pasivo. Cambio completo en 3 a 5 segundos. Tolerante a −120 °C.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- CONTACT PANEL                                  -->
+<!-- ============================================== -->
+<div id="tab-contact" class="tab-panel" style="display:none">
+  <div class="tab-inner">
+    <h1 class="tab-heading">EQUIPO · CONTACTO</h1>
+    <p class="tab-lead">Directorio del equipo de desarrollo · ARES-1 Orbital Servicing Program</p>
+    <div class="contact-grid">
+      <div class="contact-card">
+        <div class="contact-avatar">AC</div>
+        <div class="contact-info">
+          <div class="contact-name">Aaron Caruso</div>
+          <a href="mailto:adcaruso09@gmail.com" class="contact-email">adcaruso09@gmail.com</a>
+          <span class="contact-tag">Team Member</span>
+        </div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-avatar">DG</div>
+        <div class="contact-info">
+          <div class="contact-name">Daniel Gonzalez</div>
+          <a href="mailto:danielgonzalezmannella@gmail.com" class="contact-email">danielgonzalezmannella@gmail.com</a>
+          <span class="contact-tag">Team Member</span>
+        </div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-avatar">DF</div>
+        <div class="contact-info">
+          <div class="contact-name">Dante Fernandez</div>
+          <a href="mailto:dantefernandez998@gmail.com" class="contact-email">dantefernandez998@gmail.com</a>
+          <span class="contact-tag">Team Member</span>
+        </div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-avatar">SZ</div>
+        <div class="contact-info">
+          <div class="contact-name">Simon Zeballos</div>
+          <a href="mailto:leoozetaa.91@gmail.com" class="contact-email">leoozetaa.91@gmail.com</a>
+          <span class="contact-tag">Team Member</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="grid-overlay"></div>
@@ -459,7 +673,6 @@
   <button class="preset" data-preset="inspect_shield">⌕ HEAT SHIELD</button>
   <button class="preset" data-preset="dock">⊕ DOCK PORT</button>
   <button class="preset" data-preset="emergency">⚠ EMERG RETRACT</button>
-  <button class="preset" id="btn-auto" style="border-color:rgba(74,168,255,0.25);color:#e9f0fa;">⟳ AUTO ANIM</button>
 </div>
 
 <!-- Picture-in-Picture (end-effector camera) -->
@@ -1649,88 +1862,6 @@ fEnv.add(envOpts, 'showGrid').name('HUD grid').onChange(v => document.getElement
 fEnv.add(envOpts, 'showScanlines').name('Scanlines').onChange(v => document.getElementById('scanlines').style.display = v ? '' : 'none');
 
 /* =====================================================================
-   10b. AUTO-OSCILLATION — Alternating joint axes + wrist spin
-   ================================================================== */
-// Each joint oscillates on alternating axes:
-//   Odd-indexed  (0,2,4) → vertical    (pitch on Z)
-//   Even-indexed (1,3)   → horizontal  (yaw on Y)
-//   Joint 5 (wrist roll) → continuous 360° spin on X
-// Amplitudes and phases staggered for a natural wave effect.
-
-const AUTO_AMP   = 45;   // degrees amplitude for segments 0-4
-const AUTO_FREQ  = 0.35; // Hz for oscillating joints
-const WRIST_RPM  = 12;   // wrist full-rotation speed (deg/s equivalent)
-
-// Phase offsets (radians) so segments don't all move in unison
-const PHASE_OFFSET = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 0];
-
-let autoAnimEnabled = false;
-let autoAnimTime    = 0;          // accumulated time (seconds)
-let wristAngleDeg   = 0;          // continuous wrist rotation
-
-// Blend factor: 0 = fully manual (pose), 1 = fully auto
-let autoBlend = 0.0;
-let blendTarget = 0.0;
-
-function updateAutoAnim(dt) {
-  if (!autoAnimEnabled) return;
-
-  // Smooth blend transitions
-  autoBlend += (blendTarget - autoBlend) * Math.min(1, dt * 3);
-
-  autoAnimTime += dt;
-  const t = autoAnimTime;
-  const ω = AUTO_FREQ * Math.PI * 2; // angular frequency
-
-  // Oscillation values for joints 0-4
-  const osc = [
-    Math.sin(ω * t + PHASE_OFFSET[0]) * AUTO_AMP,   // J1 — vertical   (Z pitch)
-    Math.sin(ω * t + PHASE_OFFSET[1]) * AUTO_AMP,   // J2 — horizontal (Y yaw)
-    Math.sin(ω * t + PHASE_OFFSET[2]) * AUTO_AMP,   // J3 — vertical   (Z pitch)
-    Math.sin(ω * t + PHASE_OFFSET[3]) * AUTO_AMP,   // J4 — horizontal (Y yaw)
-    Math.sin(ω * t + PHASE_OFFSET[4]) * AUTO_AMP,   // J5 — vertical   (Z pitch)
-  ];
-
-  // Continuous wrist spin (360°)
-  wristAngleDeg += WRIST_RPM * dt;
-  if (wristAngleDeg >= 360) wristAngleDeg -= 360;
-
-  const b = autoBlend;
-
-  // Apply blended rotations directly to joints
-  // joint[0] → J1: vertical  (rotation.z)
-  joints[0].rotation.z = THREE.MathUtils.degToRad(
-    state.j1 * (1-b) + osc[0] * b
-  );
-  // joint[1] → J2: horizontal (rotation.y)
-  joints[1].rotation.z = 0;
-  joints[1].rotation.y = THREE.MathUtils.degToRad(
-    state.j2 * (1-b) + osc[1] * b
-  );
-  // joint[2] → J3: vertical  (rotation.z)
-  joints[2].rotation.y = 0;
-  joints[2].rotation.z = THREE.MathUtils.degToRad(
-    state.j3 * (1-b) + osc[2] * b
-  );
-  // joint[3] → J4: horizontal (rotation.y)
-  joints[3].rotation.z = 0;
-  joints[3].rotation.y = THREE.MathUtils.degToRad(
-    state.j4 * (1-b) + osc[3] * b
-  );
-  // joint[4] → J5: vertical  (rotation.z)
-  joints[4].rotation.y = 0;
-  joints[4].rotation.z = THREE.MathUtils.degToRad(
-    state.j5 * (1-b) + osc[4] * b
-  );
-  // joint[5] (wrist) → continuous 360° roll on X
-  joints[5].rotation.y = 0;
-  joints[5].rotation.z = 0;
-  joints[5].rotation.x = THREE.MathUtils.degToRad(
-    state.j6 * (1-b) + wristAngleDeg * b
-  );
-}
-
-/* =====================================================================
    11. POSE INTERPOLATION + PRESETS + COMMAND LOG
    ================================================================== */
 let poseAnim = null;
@@ -1781,40 +1912,11 @@ document.querySelectorAll('#panel-presets .preset').forEach(btn => {
   });
 });
 
-// AUTO ANIM toggle
-const btnAuto = document.getElementById('btn-auto');
-btnAuto.addEventListener('click', () => {
-  autoAnimEnabled = !autoAnimEnabled;
-  if (autoAnimEnabled) {
-    blendTarget = 1.0;
-    btnAuto.style.borderColor = 'rgba(46,226,122,0.5)';
-    btnAuto.style.color = '#2ee27a';
-    logEvt('> AUTO-ANIM ENABLED · JOINT OSCILLATION ACTIVE', 'ok');
-  } else {
-    blendTarget = 0.0;
-    btnAuto.style.borderColor = 'rgba(74,168,255,0.25)';
-    btnAuto.style.color = '#e9f0fa';
-    logEvt('> AUTO-ANIM DISABLED · MANUAL CONTROL', '');
-  }
-});
-
-// When a pose preset is clicked, temporarily lower the auto-blend so the
-// preset pose is visible, then return to auto after 4 s.
-document.querySelectorAll('#panel-presets .preset[data-preset]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (autoAnimEnabled) {
-      blendTarget = 0.0;
-      setTimeout(() => { if (autoAnimEnabled) blendTarget = 1.0; }, 4000);
-    }
-  });
-});
-
 // Initial log
 logEvt('> ARES-1 BOOT SEQUENCE COMPLETE', 'ok');
 logEvt('> SLEWING RING NOMINAL · 0.00°', 'ok');
 logEvt('> 6 SERVO MOTORS ONLINE · TORQUE NOMINAL', 'ok');
 logEvt('> END-EFFECTOR CAMERA STREAMING 4K/60', 'ok');
-logEvt('> AUTO-ANIM STANDBY · PRESS ⟳ TO ACTIVATE', '');
 logEvt('> CAPCOM HANDOVER COMPLETE · READY FOR OPS');
 
 /* =====================================================================
@@ -1910,7 +2012,6 @@ function render(now) {
   last = now;
 
   updatePoseAnim(now);
-  updateAutoAnim(dt);
   controls.update();
 
   if (envOpts.earthSpin) {
@@ -1986,6 +2087,37 @@ setTimeout(() => {
   document.getElementById('loader').classList.add('hidden');
   requestAnimationFrame(render);
 }, 600);
+
+/* =====================================================================
+   16. TAB NAVIGATION
+   ================================================================== */
+{
+  const hudEls = document.querySelectorAll(
+    '#panel-mission, #panel-spacecraft, #panel-orbital, #panel-joints,' +
+    '#panel-log, #panel-presets, #pip-wrap, #grid-overlay, #scanlines'
+  );
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === tab)
+    );
+    const isSimulator = tab === 'simulator';
+
+    hudEls.forEach(el => { el.style.display = isSimulator ? '' : 'none'; });
+    renderer.domElement.style.display = isSimulator ? '' : 'none';
+
+    const guiEl = document.querySelector('.lil-gui.root');
+    if (guiEl) guiEl.style.display = isSimulator ? '' : 'none';
+
+    document.querySelectorAll('.tab-panel').forEach(p => {
+      p.style.display = (p.id === 'tab-' + tab) ? 'block' : 'none';
+    });
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn =>
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  );
+}
 </script>
 
 </body>
